@@ -632,14 +632,14 @@ def plot_technical_indicators(
 if __name__ == "__main__":
     # Configuration
     config = {
-        'is_auto': True,
+        'is_auto': False,
         'params': {
             'ma_windows': [5, 20],
             'bb_window': 20,
             'bb_std': 2,
             'vol_window': 20
         },
-        'data_path': "../dev/components/datasets/AAPL_2009-2010_6m_raw_1d.csv",
+        'data_path': "../dev/datasets/AAPL_2009-2010_6m_raw_1d.csv",
         'verbose': False,
     }
     
