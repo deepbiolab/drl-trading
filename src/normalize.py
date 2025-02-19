@@ -199,16 +199,16 @@ class DataNormalizer:
         self, data: pd.DataFrame, window_size: int, is_auto: bool = True
     ) -> pd.DataFrame:
         """
-        Perform rolling window normalization.
+        Perform rolling window normalization using non-overlapping windows.
 
         Parameters:
         -----------
         data : pd.DataFrame
             Input data to normalize
         window_size : int
-            Size of the rolling window
+            Window size for non-overlapping normalization
         is_auto : bool
-            If True, automatically select normalization method based on data distribution
+            Automatically choose normalization method based on distribution
 
         Returns:
         --------
@@ -220,31 +220,27 @@ class DataNormalizer:
 
         for column in self.numeric_columns:
             self.rolling_scalers[column] = []
-            values = data[column].values
-            normalized_values = np.zeros_like(values, dtype=float)
+            num_rows = len(data)
 
-            for i in range(len(data) - window_size + 1):
-                window = values[i : i + window_size].reshape(-1, 1)
+            for start in range(0, num_rows, window_size):
+                end = min(start + window_size, num_rows)
+                window_data = data.iloc[
+                    start:end, data.columns.get_loc(column)
+                ].values.reshape(-1, 1)
 
-                # Determine scaler type for this window
+                # Choose scaler
                 if is_auto:
-                    method, _ = analyze_distribution(window.flatten())
+                    method, _ = analyze_distribution(window_data.flatten())
                     scaler = MinMaxScaler() if method == "min-max" else StandardScaler()
                 else:
-                    scaler = StandardScaler()  # Default when not auto
+                    scaler = StandardScaler()
 
-                scaler.fit(window)
+                # Fit and transform
+                scaler.fit(window_data)
+                normalized_data.iloc[start:end, data.columns.get_loc(column)] = (
+                    scaler.transform(window_data).flatten()
+                )
                 self.rolling_scalers[column].append(scaler)
-
-                if i == 0:
-                    normalized_values[:window_size] = scaler.transform(window).flatten()
-                else:
-                    last_value = values[i + window_size - 1].reshape(1, -1)
-                    normalized_values[i + window_size - 1] = scaler.transform(
-                        last_value
-                    ).flatten()[0]
-
-            normalized_data[column] = normalized_values
 
         return normalized_data
 
@@ -302,11 +298,12 @@ def normalize_dataset(
 ) -> Union[pd.DataFrame, Tuple[pd.DataFrame, DataNormalizer]]:
     """
     Main function to normalize dataset using either static or rolling normalization.
+    Preserves original index (including DatetimeIndex) after normalization.
 
     Parameters:
     -----------
     data : pd.DataFrame
-        Input data to normalize
+        Input data to normalize. Can have numeric or datetime index
     rolling : bool
         Whether to use rolling normalization
     window_size : int, optional
@@ -317,16 +314,36 @@ def normalize_dataset(
     Returns:
     --------
     Union[pd.DataFrame, Tuple[pd.DataFrame, DataNormalizer]]
-        Normalized data and optionally the normalizer object
+        Normalized data with original index preserved and normalizer object
     """
+    # Store original index
+    original_index = data.index
+
+    # Reset index if it's not numeric
+    if not pd.api.types.is_numeric_dtype(data.index):
+        data = data.reset_index()
+        index_name = data.columns[0]  # Store name of index column
+        # Remove index column from data to be normalized
+        data_to_normalize = data.drop(columns=[index_name])
+    else:
+        data_to_normalize = data.copy()
+        index_name = None
+
+    # Create normalizer instance
     normalizer = DataNormalizer()
 
+    # Perform normalization
     if rolling:
         if window_size is None:
             raise ValueError("window_size must be specified for rolling normalization")
-        normalized_data = normalizer.rolling_normalize(data, window_size, is_auto)
+        normalized_data = normalizer.rolling_normalize(
+            data_to_normalize, window_size, is_auto
+        )
     else:
-        normalized_data = normalizer.static_normalize(data, is_auto)
+        normalized_data = normalizer.static_normalize(data_to_normalize, is_auto)
+
+    # Restore original index
+    normalized_data.index = original_index
 
     return normalized_data, normalizer
 
@@ -417,49 +434,35 @@ def verify_normalization(
 
 
 if __name__ == "__main__":
-    from preprocess import process_stock_data
     from plots import plot_normalized_results
 
     # ==== Load sample time series ====
-    config = {
-        "is_auto": False,
-        "params": {
-            "ma_windows": [5, 20],
-            "bb_window": 20,
-            "bb_std": 2,
-            "vol_window": 20,
-        },
-        "data_path": "../dev/datasets/AAPL_2009-2010_6m_raw_1d.csv",
-        "verbose": False,
-    }
+    sample_data = pd.read_csv("../dev/datasets/AAPL_2009-2010_6m_features_1d.csv")
+    sample_data.set_index("Date", inplace=True)
 
-    # ==== Preprocess ====
-    sample_data = pd.read_csv(config["data_path"])
-    processed_data = process_stock_data(
-        sample_data,
-        compute_indicator=True,
-        is_auto=config["is_auto"],
-        indicator_params=config["params"] if not config["is_auto"] else {},
-        verbose=config["verbose"],
-    )
+    # Auto normalizer selection or defaults Standard Scaler
+    is_auto = False
 
     # ==== Normalize dataset ====
     # Regular normalize with automatic method selection
     norm_regular, static_normalizer = normalize_dataset(
-        processed_data, rolling=False, is_auto=True
+        sample_data, rolling=False, is_auto=is_auto
     )
     print("\nStatic Normalization Methods:")
     print(static_normalizer.normalization_methods)
 
     # Rolling normalize with automatic method selection
-    window_size = 30
+    window_size = 20
     norm_rolling, rolling_normalizer = normalize_dataset(
-        processed_data, rolling=True, window_size=window_size, is_auto=True
+        sample_data,
+        rolling=True,
+        window_size=window_size,
+        is_auto=is_auto,
     )
 
     # Show all plots
     plot_normalized_results(
-        original=processed_data,
+        original=sample_data,
         norm_regular=norm_regular,
         norm_rolling=norm_rolling,
         window_size=window_size,
@@ -468,7 +471,7 @@ if __name__ == "__main__":
     # Verify static normalization
     try:
         static_results = verify_normalization(
-            processed_data, norm_regular, static_normalizer, rolling=False
+            sample_data, norm_regular, static_normalizer, rolling=False
         )
         print("\nStatic Normalization Verification Results:")
         for column, result in static_results.items():
@@ -479,7 +482,7 @@ if __name__ == "__main__":
     # Verify rolling normalization
     try:
         rolling_results = verify_normalization(
-            processed_data,
+            sample_data,
             norm_rolling,
             rolling_normalizer,
             rolling=True,
