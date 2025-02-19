@@ -39,15 +39,21 @@ Usage Example:
 -------------
 - Static normalization
 
-`normalized_data, normalizer = normalize_dataset(data, rolling=False, is_auto=True)`
+```
+normalized_data, normalizer = normalize_dataset(data, rolling=False, is_auto=True)
+```
 
 - Rolling window normalization
 
-`normalized_data, normalizer = normalize_dataset(data, rolling=True, window_size=30, is_auto=True)`
+```
+normalized_data, normalizer = normalize_dataset(data, rolling=True, window_size=30, is_auto=True)
+```
 
 - Verification
 
-`results = verify_normalization(original_data, normalized_data, normalizer)`
+```
+results = verify_normalization(original_data, normalized_data, normalizer)
+```
 
 Author: Tim Lin
 Organization: DeepBioLab
