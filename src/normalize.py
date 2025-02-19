@@ -1,50 +1,66 @@
 """
-Data Normalization Module
+Data Normalization Module with Static and Rolling Normalization
 ==============================================
 
-This module provides functionality for data normalization with automatic method selection.
-It includes methods for:
-- Outlier detection using IQR method
-- Distribution analysis
-- Z-score and Min-max normalization
+This module provides functionality for data normalization with automatic method selection
+and verification capabilities. It implements both static and rolling window normalization approaches
+with built-in state tracking and inverse transformation support.
+
+Key Features:
+------------
+1. Automatic Normalization Method Selection:
+   - Analyzes data distribution characteristics
+   - Chooses between z-score and min-max normalization based on:
+     * Presence of outliers (IQR method)
+     * Skewness
+     * Kurtosis
+
+2. Normalization Approaches:
+   - Static normalization (whole dataset)
+   - Rolling window normalization
+   - Support for both manual and automatic method selection
+
+3. Data Processing:
+   - Handles pandas DataFrames
+   - Automatic detection of numeric columns
+   - Preserves non-numeric data
+
+4. State Management:
+   - Tracks normalization methods per column
+   - Maintains transformation states for inverse operations
+   - Stores scalers for both static and rolling approaches
+
+5. Quality Assurance:
+   - Built-in verification functionality
+   - MSE-based accuracy checking
+   - Detailed verification reporting
+
+Usage Example:
+-------------
+- Static normalization
+
+`normalized_data, normalizer = normalize_dataset(data, rolling=False, is_auto=True)`
+
 - Rolling window normalization
-- Dataset normalization for various data structures (1D, 2D arrays and DataFrames)
 
-The module automatically selects between z-score and min-max normalization based on:
-- Presence of outliers
-- Skewness
-- Kurtosis
+`normalized_data, normalizer = normalize_dataset(data, rolling=True, window_size=30, is_auto=True)`
 
-Part of the financial data preprocessing toolkit.
+- Verification
+
+`results = verify_normalization(original_data, normalized_data, normalizer)`
 
 Author: Tim Lin
 Organization: DeepBioLab
 License: MIT License
-
-Copyright (c) 2024 Tim Lin - DeepBioLab
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
 """
 
 import numpy as np
 import pandas as pd
 from scipy.stats import skew, kurtosis
+import numpy as np
+import pandas as pd
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
+from typing import Dict, Tuple, Union, List, Optional
 
 
 def detect_outliers(data):
@@ -107,145 +123,298 @@ def choose_normalization(data):
     return analyze_distribution(data_array)
 
 
-def normalize_data(data, method, params):
+class DataNormalizer:
     """
-    Normalize data using the specified method and parameters.
+    A class to handle both static and rolling normalization of financial data
+    with state space tracking and scikit-learn integration.
+    """
+
+    def __init__(self):
+        self.static_scalers: Dict[str, Union[StandardScaler, MinMaxScaler]] = {}
+        self.rolling_scalers: Dict[str, List[Union[StandardScaler, MinMaxScaler]]] = {}
+        self.numeric_columns: List[str] = []
+        self.normalization_methods: Dict[str, str] = {}  # Track method per column
+
+    def _is_numeric_column(self, series: pd.Series) -> bool:
+        """Check if a column is numeric and should be normalized."""
+        return pd.api.types.is_numeric_dtype(series) and not series.isnull().all()
+
+    def _get_numeric_columns(self, data: pd.DataFrame) -> List[str]:
+        """Identify numeric columns for normalization."""
+        return [col for col in data.columns if self._is_numeric_column(data[col])]
+
+    def _initialize_scalers(
+        self, column: str, data: np.ndarray, is_auto: bool = True
+    ) -> None:
+        """
+        Initialize appropriate scaler for a column based on data distribution if auto,
+        otherwise use specified scaler type.
+        """
+        if is_auto:
+            method, _ = analyze_distribution(data)
+            self.normalization_methods[column] = method
+            self.static_scalers[column] = (
+                MinMaxScaler() if method == "min-max" else StandardScaler()
+            )
+        else:
+            self.static_scalers[column] = (
+                StandardScaler()
+            )  # Default to StandardScaler when not auto
+
+    def static_normalize(
+        self, data: pd.DataFrame, is_auto: bool = True
+    ) -> pd.DataFrame:
+        """
+        Perform static normalization on the entire dataset.
+
+        Parameters:
+        -----------
+        data : pd.DataFrame
+            Input data to normalize
+        is_auto : bool
+            If True, automatically select normalization method based on data distribution
+
+        Returns:
+        --------
+        pd.DataFrame
+            Normalized dataset
+        """
+        normalized_data = data.copy()
+        self.numeric_columns = self._get_numeric_columns(data)
+
+        for column in self.numeric_columns:
+            values = data[column].values.reshape(-1, 1)
+            self._initialize_scalers(column, values.flatten(), is_auto)
+            normalized_data[column] = self.static_scalers[column].fit_transform(values)
+
+        return normalized_data
+
+    def rolling_normalize(
+        self, data: pd.DataFrame, window_size: int, is_auto: bool = True
+    ) -> pd.DataFrame:
+        """
+        Perform rolling window normalization.
+
+        Parameters:
+        -----------
+        data : pd.DataFrame
+            Input data to normalize
+        window_size : int
+            Size of the rolling window
+        is_auto : bool
+            If True, automatically select normalization method based on data distribution
+
+        Returns:
+        --------
+        pd.DataFrame
+            Rolling normalized dataset
+        """
+        normalized_data = data.copy()
+        self.numeric_columns = self._get_numeric_columns(data)
+
+        for column in self.numeric_columns:
+            self.rolling_scalers[column] = []
+            values = data[column].values
+            normalized_values = np.zeros_like(values, dtype=float)
+
+            for i in range(len(data) - window_size + 1):
+                window = values[i : i + window_size].reshape(-1, 1)
+
+                # Determine scaler type for this window
+                if is_auto:
+                    method, _ = analyze_distribution(window.flatten())
+                    scaler = MinMaxScaler() if method == "min-max" else StandardScaler()
+                else:
+                    scaler = StandardScaler()  # Default when not auto
+
+                scaler.fit(window)
+                self.rolling_scalers[column].append(scaler)
+
+                if i == 0:
+                    normalized_values[:window_size] = scaler.transform(window).flatten()
+                else:
+                    last_value = values[i + window_size - 1].reshape(1, -1)
+                    normalized_values[i + window_size - 1] = scaler.transform(
+                        last_value
+                    ).flatten()[0]
+
+            normalized_data[column] = normalized_values
+
+        return normalized_data
+
+    def inverse_transform_static(self, data: pd.DataFrame) -> pd.DataFrame:
+        """Reverse static normalization."""
+        denormalized_data = data.copy()
+
+        for column in self.numeric_columns:
+            if column in self.static_scalers:
+                values = data[column].values.reshape(-1, 1)
+                denormalized_data[column] = self.static_scalers[
+                    column
+                ].inverse_transform(values)
+
+        return denormalized_data
+
+    def inverse_transform_rolling(
+        self, data: pd.DataFrame, window_index: int, columns: Optional[List[str]] = None
+    ) -> pd.DataFrame:
+        """
+        Reverse rolling normalization for a specific window.
+
+        Parameters:
+        -----------
+        data : pd.DataFrame
+            Normalized data
+        window_index : int
+            Index of the window to reverse
+        columns : List[str], optional
+            Specific columns to denormalize
+
+        Returns:
+        --------
+        pd.DataFrame
+            Denormalized data for the specified window
+        """
+        denormalized_data = data.copy()
+        columns_to_process = columns if columns is not None else self.numeric_columns
+
+        for column in columns_to_process:
+            if column in self.rolling_scalers:
+                if 0 <= window_index < len(self.rolling_scalers[column]):
+                    scaler = self.rolling_scalers[column][window_index]
+                    values = data[column].values.reshape(-1, 1)
+                    denormalized_data[column] = scaler.inverse_transform(values)
+
+        return denormalized_data
+
+
+def normalize_dataset(
+    data: pd.DataFrame,
+    rolling: bool = False,
+    window_size: Optional[int] = None,
+    is_auto: bool = True,
+) -> Union[pd.DataFrame, Tuple[pd.DataFrame, DataNormalizer]]:
+    """
+    Main function to normalize dataset using either static or rolling normalization.
 
     Parameters:
     -----------
-    data : array-like
-        Data to normalize
-    method : str
-        'z-score' or 'min-max'
-    params : tuple
-        Parameters for normalization (mean, std) for z-score or (min, max) for min-max
-
-    Returns:
-    --------
-    array-like
-        Normalized data in the same format as input
-    """
-    if method == "z-score":
-        mean, std = params
-        return (data - mean) / std
-    elif method == "min-max":
-        min_val, max_val = params
-        return (data - min_val) / (max_val - min_val)
-    else:
-        raise ValueError(f"Unknown normalization method: {method}")
-
-
-def rolling_normalize(data, window_size, verbose=True):
-    """
-    Normalize data using a rolling window approach with automatic method selection.
-
-    Parameters:
-    -----------
-    data : array-like
-        Data to normalize
-    window_size : int
-        Size of the rolling window
-    verbose : bool, optional (default=True)
-        If True, returns both normalized data and window parameters
-        If False, returns only normalized data
-
-    Returns:
-    --------
-    array-like or tuple
-        If verbose=True: (normalized_data, window_params)
-            - normalized_data: Rolling normalized data
-            - window_params: List of (method, params) tuples for each window
-        If verbose=False: normalized_data only
-    """
-    data_array = np.array(data)
-    normalized_data = np.zeros_like(data_array, dtype=float)
-    window_params = []
-
-    for i in range(len(data_array) - window_size + 1):
-        window = data_array[i : i + window_size]
-        method, params = choose_normalization(window)
-        normalized_data[i : i + window_size] = normalize_data(window, method, params)
-        if verbose:
-            window_params.append((method, params))
-
-    return (normalized_data, window_params) if verbose else normalized_data
-
-
-def normalize_dataset(data, rolling=False, window_size=None):
-    """
-    Normalize entire dataset using either standard or rolling normalization.
-
-    Parameters:
-    -----------
-    data : array-like, pd.DataFrame
+    data : pd.DataFrame
         Input data to normalize
     rolling : bool
         Whether to use rolling normalization
-    window_size : int
+    window_size : int, optional
         Size of rolling window (required if rolling=True)
+    is_auto : bool
+        If True, automatically select normalization method based on data distribution
 
     Returns:
     --------
-    normalized_data : same type as input
-        Normalized version of input data
-    methods : str, list, or dict
-        Normalization methods used
-    params : tuple, list, or dict
-        Parameters used for normalization
+    Union[pd.DataFrame, Tuple[pd.DataFrame, DataNormalizer]]
+        Normalized data and optionally the normalizer object
     """
-    if rolling and window_size is None:
-        raise ValueError(
-            "window_size must be specified when using rolling normalization"
+    normalizer = DataNormalizer()
+
+    if rolling:
+        if window_size is None:
+            raise ValueError("window_size must be specified for rolling normalization")
+        normalized_data = normalizer.rolling_normalize(data, window_size, is_auto)
+    else:
+        normalized_data = normalizer.static_normalize(data, is_auto)
+
+    return normalized_data, normalizer
+
+
+def verify_normalization(
+    original_data: pd.DataFrame,
+    normalized_data: pd.DataFrame,
+    normalizer: DataNormalizer,
+    rolling: bool = False,
+    window_size: Optional[int] = None,
+    tolerance: float = 1e-10,
+) -> Dict[str, Dict[str, float]]:
+    """
+    Verify normalization accuracy by comparing original data with inverse transformed data.
+
+    Parameters:
+    -----------
+    original_data : pd.DataFrame
+        Original data before normalization
+    normalized_data : pd.DataFrame
+        Normalized data
+    normalizer : DataNormalizer
+        Normalizer object used for the transformation
+    rolling : bool
+        Whether rolling normalization was used
+    window_size : int, optional
+        Size of rolling window (required if rolling=True)
+    tolerance : float
+        Maximum acceptable MSE value for verification
+
+    Returns:
+    --------
+    Dict[str, Dict[str, float]]
+        Dictionary containing MSE values for each column
+        Format: {column_name: {'mse': mse_value, 'passed': bool}}
+
+    Raises:
+    -------
+    ValueError
+        If MSE exceeds tolerance for any column
+    """
+    results = {}
+
+    if rolling:
+        if window_size is None:
+            raise ValueError(
+                "window_size must be specified for rolling normalization verification"
+            )
+
+        # Verify first window for rolling normalization
+        window_idx = 0
+        window_start = window_idx
+        window_end = window_idx + window_size
+
+        denorm_data = normalizer.inverse_transform_rolling(
+            normalized_data.iloc[window_start:window_end], window_index=window_idx
         )
 
-    # Handle DataFrame
-    if isinstance(data, pd.DataFrame):
-        normalized_data = pd.DataFrame(index=data.index)
-
-        for col in data.columns:
-            if rolling:
-                norm_col = rolling_normalize(
-                    data[col].values, window_size, verbose=False
+        for column in normalizer.numeric_columns:
+            mse = np.mean(
+                (
+                    original_data[column].iloc[window_start:window_end]
+                    - denorm_data[column]
                 )
-                normalized_data[col] = norm_col
-            else:
-                method, param = choose_normalization(data[col].values)
-                normalized_data[col] = normalize_data(data[col].values, method, param)
+                ** 2
+            )
+            passed = mse <= tolerance
+            results[column] = {"mse": mse, "passed": passed, "window_index": window_idx}
 
-        return normalized_data
-
-    # Handle numpy array
-    data_array = np.array(data)
-
-    # Handle 2D array
-    if len(data_array.shape) == 2:
-        normalized_data = np.zeros_like(data_array, dtype=float)
-
-        for i in range(data_array.shape[1]):
-            if rolling:
-                norm_col = rolling_normalize(
-                    data_array[:, i], window_size, verbose=False
-                )
-                normalized_data[:, i] = norm_col
-            else:
-                method, param = choose_normalization(data_array[:, i])
-                normalized_data[:, i] = normalize_data(data_array[:, i], method, param)
-
-        return normalized_data
-
-    # Handle 1D array
-    if rolling:
-        return rolling_normalize(data_array, window_size, verbose=False)
     else:
-        method, param = choose_normalization(data_array)
-        return normalize_data(data_array, method, param)
+        # Verify static normalization
+        denorm_data = normalizer.inverse_transform_static(normalized_data)
+
+        for column in normalizer.numeric_columns:
+            mse = np.mean((original_data[column] - denorm_data[column]) ** 2)
+            passed = mse <= tolerance
+            results[column] = {"mse": mse, "passed": passed}
+
+    # Check if any verifications failed
+    failed_columns = [col for col, res in results.items() if not res["passed"]]
+    if failed_columns:
+        raise ValueError(
+            f"Normalization verification failed for columns: {failed_columns}\n"
+            f"Results: {results}"
+        )
+
+    return results
 
 
 if __name__ == "__main__":
     from preprocess import process_stock_data
     from plots import plot_normalized_results
 
-    # Load sample time series
+    # ==== Load sample time series ====
     config = {
         "is_auto": False,
         "params": {
@@ -258,7 +427,7 @@ if __name__ == "__main__":
         "verbose": False,
     }
 
-    # Preprocess
+    # ==== Preprocess ====
     sample_data = pd.read_csv(config["data_path"])
     processed_data = process_stock_data(
         sample_data,
@@ -268,14 +437,18 @@ if __name__ == "__main__":
         verbose=config["verbose"],
     )
 
-    # Normalize dataset
-    # regular normalize
-    norm_regular = normalize_dataset(processed_data, rolling=False)
+    # ==== Normalize dataset ====
+    # Regular normalize with automatic method selection
+    norm_regular, static_normalizer = normalize_dataset(
+        processed_data, rolling=False, is_auto=True
+    )
+    print("\nStatic Normalization Methods:")
+    print(static_normalizer.normalization_methods)
 
-    # rolling nomalize
+    # Rolling normalize with automatic method selection
     window_size = 30
-    norm_rolling = normalize_dataset(
-        processed_data, rolling=True, window_size=window_size
+    norm_rolling, rolling_normalizer = normalize_dataset(
+        processed_data, rolling=True, window_size=window_size, is_auto=True
     )
 
     # Show all plots
@@ -285,3 +458,32 @@ if __name__ == "__main__":
         norm_rolling=norm_rolling,
         window_size=window_size,
     )
+
+    # Verify static normalization
+    try:
+        static_results = verify_normalization(
+            processed_data, norm_regular, static_normalizer, rolling=False
+        )
+        print("\nStatic Normalization Verification Results:")
+        for column, result in static_results.items():
+            print(f"{column}: MSE = {result['mse']:.10f} (Passed: {result['passed']})")
+    except ValueError as e:
+        print(f"Static normalization verification failed: {e}")
+
+    # Verify rolling normalization
+    try:
+        rolling_results = verify_normalization(
+            processed_data,
+            norm_rolling,
+            rolling_normalizer,
+            rolling=True,
+            window_size=window_size,
+        )
+        print("\nRolling Normalization Verification Results:")
+        for column, result in rolling_results.items():
+            print(
+                f"{column}: MSE = {result['mse']:.10f} "
+                f"(Passed: {result['passed']}, Window: {result['window_index']})"
+            )
+    except ValueError as e:
+        print(f"Rolling normalization verification failed: {e}")

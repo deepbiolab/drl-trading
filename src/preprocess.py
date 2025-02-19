@@ -1,40 +1,67 @@
 """
-Stock Data Processing and Technical Analysis Tool
+Stock Data Processing and Technical Analysis Module
 ==============================================
 
-This module provides functionality for processing stock market data and calculating
-various technical indicators including Moving Averages, Bollinger Bands, and Volatility.
-It also includes visualization tools for technical analysis.
+This module provides comprehensive functionality for processing financial time series data
+and calculating technical indicators with automatic parameter selection based on data
+characteristics.
 
-Features:
-- Data preprocessing and cleaning
-- Automatic/Manual technical indicator parameter selection
-- Technical indicator calculation
-- Visualization of technical indicators
+Key Features:
+------------
+1. Data Analysis and Preprocessing:
+   - Missing value detection and handling
+   - Data quality assessment
+   - Automatic data cleaning
+   - Time series validation
+
+2. Technical Indicator Calculation:
+   - Moving Averages (Multiple windows)
+   - Bollinger Bands
+   - Volatility Measures
+   - Additional indicators based on data characteristics:
+     * Momentum
+     * RSI (Relative Strength Index)
+
+3. Automatic Parameter Selection:
+   - Data-driven parameter optimization
+   - Adapts to:
+     * Time series length
+     * Volatility levels
+     * Price characteristics
+     * Market conditions
+
+
+Usage Example:
+-------------
+- Basic usage with automatic parameter selection
+```
+processed_data = process_stock_data(
+    data,
+    compute_indicator=True,
+    is_auto=True,
+    verbose=True
+)
+```
+
+- Manual parameter specification
+```
+processed_data = process_stock_data(
+    data,
+    compute_indicator=True,
+    is_auto=False,
+    indicator_params={
+        'ma_windows': [5, 20],
+        'bb_window': 20,
+        'bb_std': 2,
+        'vol_window': 20
+    },
+    verbose=True
+)
+```
 
 Author: Tim Lin
 Organization: DeepBioLab
 License: MIT License
-
-Copyright (c) 2024 Tim Lin - DeepBioLab
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
 """
 
 import numpy as np
@@ -446,3 +473,5 @@ if __name__ == "__main__":
         verbose=config["verbose"],
     )
     plot_technical_indicators(processed_data)
+
+    from normalize import normalize_dataset
