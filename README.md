@@ -3,7 +3,6 @@
 ![](assets/rl-trading.svg)
 
 ## **System Workflow**
-To prevent the issue where pre-filtering logic (e.g., stop-loss or take-profit rules) continuously overrides the model's decision-making process, the following improved workflow is proposed:
 
 1. **State Input**:  
    - The market state is fed into the system.
