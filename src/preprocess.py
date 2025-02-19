@@ -473,5 +473,3 @@ if __name__ == "__main__":
         verbose=config["verbose"],
     )
     plot_technical_indicators(processed_data)
-
-    from normalize import normalize_dataset
