@@ -182,3 +182,41 @@ In live trading, the action space may need to adapt dynamically to market condit
      - **Stop-Loss Action**: Automatically sell a stock when its loss reaches a defined threshold (e.g., a $10 loss) to minimize further losses.  
      - **Take-Profit Action**: Automatically sell a stock when its profit reaches a defined threshold (e.g., a $10 profit) to lock in gains.
 
+
+## **Rewards Design**
+The reward function is a crucial component in reinforcement learning that defines the value of each action. In financial trading, rewards are typically aligned with trading profits while considering various aspects of trading behavior.
+
+#### **1. Base Trading Rewards**
+- **Buy Actions**: $R_{buy} = 0$ (default)
+- **Hold Actions**: $R_{hold} = 0$ (default)
+- **Sell Actions**: $R_{sell} = log(P_{sell} / P_{buy})$
+
+The reason for using logarithmic returns is that it has several advantages over other methods:
+* **Additivity**: Multiple trade returns can be summed directly
+* **Symmetry**: Order of trades doesn't affect cumulative returns
+* **Scale Independence**: Works across different price levels
+* Better statistical properties for learning
+
+#### **2. Behavioral Adjustments(optional)**
+Rewards can be modified to encourage specific trading behaviors:
+
+a. **Trading Frequency**:
+   ```python
+   if action == 'buy':
+       reward += buy_incentive  # Increase for more frequent trading
+   ```
+
+b. **Holding Duration**:
+   ```python
+   if action == 'hold':
+       reward += hold_incentive  # Increase for longer holding periods
+   ```
+
+#### **3. Risk Management**:
+```python
+if stop_loss_triggered:
+      reward -= stop_loss_penalty
+if take_profit_triggered:
+      reward += take_profit_bonus
+```
+
