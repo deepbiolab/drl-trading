@@ -212,7 +212,7 @@ b. **Holding Duration**:
        reward += hold_incentive  # Increase for longer holding periods
    ```
 
-#### **3. Risk Management**:
+#### **3. Risk Management(optional)**:
 ```python
 if stop_loss_triggered:
       reward -= stop_loss_penalty
