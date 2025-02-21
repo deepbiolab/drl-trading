@@ -36,5 +36,26 @@
    - **Hold Actions**: $R_{hold} = 0$ (default)
    - **Sell Actions**: $R_{sell} = log(P_{sell} / P_{buy})$
 
-For detailed implementation guidelines and mathematical formulations, please refer to the [technical documentation](./dev/report.md).
+> For detailed implementation guidelines and mathematical formulations, please refer to the [technical documentation](./dev/report.md).
+
+
+![](./assets/reply-buffer.png)
+
+4. **Experience Replay**:
+   - Fixed-size buffer storing (s, a, r, s', done) tuples
+   - Random batch sampling (batch_size=64)
+   - Breaks correlations and enables efficient learning
+
+5. **DQN**:
+   - Architecture: Input → [64, 32, 8] ReLU → 3 Linear
+   - Training: MSE Loss, Adam(lr=5e-4)
+   - Double DQN with soft target updates (α=1e-3)
+
+6. **Agent**:
+   - Networks: Local (action) + Target (estimation) + Replay Buffer
+   - Features: ε-greedy exploration, periodic updates (4 steps)
+   - Parameters: γ=0.99, lr=5e-4, α=1e-3
+   - Modes: Training (exploration) / Testing (deterministic)
+
+For detailed implementation guidelines and mathematical formulations, please refer to the [illustraed DQN notebook](https://github.com/deepbiolab/drl/blob/main/model-based-learning/value-based/vanilla-dqn/dqn_lunarlander.ipynb).
 
