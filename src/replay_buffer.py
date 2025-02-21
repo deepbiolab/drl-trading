@@ -1,9 +1,20 @@
-# Load Python Libraries
+"""
+Experience Replay Buffer Implementation for Deep Q-Learning
+
+This module implements a replay buffer for storing and sampling experiences
+in reinforcement learning, particularly for Deep Q-Learning algorithms.
+The buffer stores transitions (state, action, reward, next_state, done)
+and enables random sampling for breaking correlations in sequential data.
+
+Author: Tim Lin
+Organization: DeepBioLab
+License: MIT License
+"""
+
 import torch
 import random
 import numpy as np
 from collections import deque, namedtuple
-
 
 
 class ReplayBuffer:

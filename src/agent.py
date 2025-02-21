@@ -1,3 +1,45 @@
+"""
+Deep Q-Learning Agent Implementation for Trading Environment
+
+This module implements a DQN agent specifically designed for trading environments,
+featuring Double DQN architecture with experience replay and target networks for
+stable learning. The agent can operate in both training and testing modes.
+
+Architecture Components:
+    1. Local Network (Q): Active network for action selection and learning
+    2. Target Network (Q_target): Stable network for value estimation
+    3. Experience Replay: Buffer for storing and sampling transitions
+    4. Soft Updates: Gradual target network parameter updates
+
+Key Features:
+    - Double DQN implementation to reduce value overestimation
+    - Epsilon-greedy exploration strategy
+    - Periodic network updates (configurable frequency)
+    - Experience replay for stable learning
+    - Flexible state space handling with window-based features
+    - Discrete action space: hold (0), buy (1), sell (2)
+
+Learning Process:
+    1. State observation and action selection (epsilon-greedy)
+    2. Environment interaction and experience storage
+    3. Periodic learning from random experience batches
+    4. Soft update of target network parameters
+
+Hyperparameters:
+    - buffer_size: 100000 (size of replay buffer)
+    - batch_size: 64 (training batch size)
+    - gamma: 0.99 (discount factor)
+    - alpha: 0.001 (soft update interpolation)
+    - lr: 0.0005 (learning rate)
+    - update_step: 4 (network update frequency)
+
+Usage:
+    >>> agent = Agent(num_features=4, window_size=10)
+    >>> action = agent.select_action(state, epsilon=0.1)
+    >>> next_state, reward, done, _ = env.step(action)
+    >>> loss = agent.step(state, action, reward, next_state, done)
+"""
+
 import random
 import numpy as np
 
@@ -5,8 +47,8 @@ import torch
 import torch.nn.functional as F
 import torch.optim as optim
 
-from .model import QNetwork
-from .replay_buffer import ReplayBuffer
+from model import QNetwork
+from replay_buffer import ReplayBuffer
 
 
 class Agent:
@@ -181,3 +223,77 @@ class Agent:
         """Load model parameters."""
         checkpoint = torch.load(filename)
         self.Q.load_state_dict(checkpoint)
+
+
+if __name__ == "__main__":
+    print("Testing DQN Agent...")
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    num_features = 4
+    window_size = 2
+    agent = Agent(num_features=num_features, window_size=window_size, device=device)
+
+    # Perform initial hard update to sync networks
+    agent.hard_update()
+
+    # Test 1: Initialization
+    assert (
+        agent.state_size == num_features * window_size
+    ), "State size initialization failed"
+    assert agent.action_size == 3, "Action size should be 3 (hold, buy, sell)"
+    assert len(agent.memory) == 0, "Memory should be empty at initialization"
+    print("✓ Initialization tests passed")
+
+    # Test 2: Action Selection
+    state = np.random.rand(num_features * window_size)
+    # Test deterministic action (test mode)
+    agent.test_mode = True
+    action_test = agent.select_action(state)
+    assert isinstance(action_test, (int, np.integer)), "Action should be an integer"
+    assert 0 <= action_test <= 2, "Action should be in range [0,2]"
+
+    # Test exploration action (train mode)
+    agent.test_mode = False
+    actions = [agent.select_action(state, epsilon=1.0) for _ in range(100)]
+    unique_actions = set(actions)
+    assert len(unique_actions) == 3, "With epsilon=1.0, should see all actions"
+    print("✓ Action selection tests passed")
+
+    # Test 3: Memory and Learning
+    # Add some fake experiences
+    batch_size = agent.batch_size
+    for _ in range(batch_size + 1):
+        state = np.random.rand(num_features * window_size)
+        action = random.randint(0, 2)
+        reward = random.uniform(-1, 1)
+        next_state = np.random.rand(num_features * window_size)
+        done = random.choice([0, 1])
+        agent.step(state, action, reward, next_state, done)
+
+    assert len(agent.memory) == batch_size + 1, "Memory size mismatch"
+    print("✓ Memory storage tests passed")
+
+    # Test 4: Network Updates
+    # Store initial parameters
+    initial_params = {
+        name: param.clone() for name, param in agent.Q_target.named_parameters()
+    }
+
+    # Force multiple learning steps to ensure visible parameter changes
+    for _ in range(5):  # Multiple updates to ensure visible change
+        experiences = agent.memory.sample()
+        loss = agent.learn(experiences)
+
+    # Check if loss is valid
+    assert isinstance(loss.item(), float), "Loss should be a float"
+    assert not torch.isnan(loss), "Loss should not be NaN"
+
+    # Verify target network was updated
+    params_changed = False
+    for name, param in agent.Q_target.named_parameters():
+        if not torch.equal(initial_params[name], param):
+            params_changed = True
+            break
+
+    assert params_changed, "Target network parameters should change after update"
+    print("✓ Network update tests passed")

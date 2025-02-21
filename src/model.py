@@ -1,3 +1,16 @@
+"""
+Deep Q-Network (DQN) Model Implementation
+
+This module implements a neural network architecture for Deep Q-Learning,
+specifically designed for trading environments. The network maps state
+observations to Q-values for each possible action (hold, buy, sell).
+
+
+Author: Tim Lin
+Organization: DeepBioLab
+License: MIT License
+"""
+
 import torch
 import torch.nn as nn
 
@@ -31,16 +44,34 @@ class QNetwork(nn.Module):
         return actions
 
 
-
 if __name__ == "__main__":
-    # test model
-    q_net = QNetwork(state_size=8)  # action_size defaults to 3 (buy, sell, hold)
-    # fake input, batch size 4
-    states = torch.rand((4, 8))
-    # fake output
+    print("Testing QNetwork...")
+
+    # Test 1: Initialization
+    state_size = 8
+    action_size = 3
+    q_net = QNetwork(state_size=state_size)
+
+    # Check network structure
+    assert hasattr(q_net, "Q"), "Network should have Q Sequential layer"
+    assert len(list(q_net.parameters())) > 0, "Network should have trainable parameters"
+    print("✓ Initialization tests passed")
+
+    # Test 2: Forward Pass
+    # Test single input
+    single_state = torch.rand((1, state_size))
+    single_output = q_net(single_state)
+    expected_single_shape = torch.Size([1, action_size])
+    assert (
+        single_output.shape == expected_single_shape
+    ), f"Single input shape mismatch. Expected {expected_single_shape}, got {single_output.shape}"
+
+    # Test batch input
+    batch_size = 4
+    states = torch.rand((batch_size, state_size))
     output = q_net(states)
-    expected_shape = torch.Size([4, 3])
-    try:
-        assert output.shape == expected_shape
-    except AssertionError:
-        print(f"Assertion failed: Expected output shape {expected_shape}, but got {output.shape}")
+    expected_batch_shape = torch.Size([batch_size, action_size])
+    assert (
+        output.shape == expected_batch_shape
+    ), f"Batch input shape mismatch. Expected {expected_batch_shape}, got {output.shape}"
+    print("✓ Forward pass shape tests passed")
