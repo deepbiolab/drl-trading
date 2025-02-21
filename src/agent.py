@@ -19,25 +19,15 @@ Key Features:
     - Flexible state space handling with window-based features
     - Discrete action space: hold (0), buy (1), sell (2)
 
-Learning Process:
-    1. State observation and action selection (epsilon-greedy)
-    2. Environment interaction and experience storage
-    3. Periodic learning from random experience batches
-    4. Soft update of target network parameters
-
-Hyperparameters:
-    - buffer_size: 100000 (size of replay buffer)
-    - batch_size: 64 (training batch size)
-    - gamma: 0.99 (discount factor)
-    - alpha: 0.001 (soft update interpolation)
-    - lr: 0.0005 (learning rate)
-    - update_step: 4 (network update frequency)
-
 Usage:
     >>> agent = Agent(num_features=4, window_size=10)
     >>> action = agent.select_action(state, epsilon=0.1)
     >>> next_state, reward, done, _ = env.step(action)
     >>> loss = agent.step(state, action, reward, next_state, done)
+
+Author: Tim Lin
+Organization: DeepBioLab
+License: MIT License
 """
 
 import random
