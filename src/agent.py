@@ -46,8 +46,7 @@ class Agent:
 
     def __init__(
         self,
-        num_features,
-        window_size,
+        env,
         test_mode=False,
         buffer_size=int(1e5),
         batch_size=64,
@@ -87,7 +86,7 @@ class Agent:
         self.alpha = alpha
         self.update_step = update_step
 
-        self.state_size = window_size * num_features
+        self.state_size = env.state_size # window_size * num_features
         self.action_size = 3
 
         # Q-Network
