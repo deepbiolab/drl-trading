@@ -156,7 +156,7 @@ def test(test_df, args):
         test_mode=True,
         device=device,
     )
-    agent.load(filename=args.model_path)
+    agent.load(filename=f"checkpoints/{args.model_path}")
 
     # Run test episodes
     state = test_env.reset()
