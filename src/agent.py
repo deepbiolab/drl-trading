@@ -37,8 +37,8 @@ import torch
 import torch.nn.functional as F
 import torch.optim as optim
 
-from model import QNetwork
-from replay_buffer import ReplayBuffer
+from src.model import QNetwork
+from src.replay_buffer import ReplayBuffer
 
 
 class Agent:
@@ -86,7 +86,7 @@ class Agent:
         self.alpha = alpha
         self.update_step = update_step
 
-        self.state_size = env.state_size # window_size * num_features
+        self.state_size = env.state_size  # window_size * num_features
         self.action_size = 3
 
         # Q-Network
@@ -95,7 +95,7 @@ class Agent:
         self.optimizer = optim.Adam(self.Q.parameters(), lr=self.lr)
 
         # Replay memory
-        self.memory = ReplayBuffer(self.buffer_size, self.batch_size, seed)
+        self.memory = ReplayBuffer(self.buffer_size, self.batch_size, seed, device)
         # Initialize time step (for updating every update step)
         self.t_step = 0
 
@@ -210,17 +210,31 @@ class Agent:
 
     def load(self, filename):
         """Load model parameters."""
-        checkpoint = torch.load(filename)
+        checkpoint = torch.load(filename, weights_only=True)
         self.Q.load_state_dict(checkpoint)
 
 
 if __name__ == "__main__":
+    from src.environment import Environment
+    import pandas as pd
+
+    data = pd.read_csv("datasets/AAPL_2009-2010_6m_features_1d.csv")
+    state_features = ["Date", "Close", "BB_upper", "BB_lower"]
+    data = data[state_features]
+
+    # split dataset df into train (80%) and test (20%) datasets
+    training_rows = int(len(data.index) * 0.8)
+    train_df = data.loc[:training_rows].set_index("Date")
+    test_df = data.loc[training_rows:].set_index("Date")
+
+    test_env = Environment(test_df, window_size=1, verbose=False)
+
     print("Testing DQN Agent...")
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    num_features = 4
-    window_size = 2
-    agent = Agent(num_features=num_features, window_size=window_size, device=device)
+    num_features = 3
+    window_size = 1
+    agent = Agent(test_env, test_mode=True, device=device)
 
     # Perform initial hard update to sync networks
     agent.hard_update()

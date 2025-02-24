@@ -51,7 +51,7 @@ License: MIT License
 import pandas as pd
 from typing import Tuple
 
-from features import calculate_technical_indicators
+from src.features import calculate_technical_indicators
 
 
 def analyze_stock_data(
@@ -243,7 +243,7 @@ if __name__ == "__main__":
             "bb_std": 2,
             "vol_window": 20,
         },
-        "data_path": "../dev/datasets/AAPL_2009-2010_6m_raw_1d.csv",
+        "data_path": "../datasets/AAPL_2009-2010_6m_raw_1d.csv",
         "verbose": False,
     }
 

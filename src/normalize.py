@@ -434,10 +434,10 @@ def verify_normalization(
 
 
 if __name__ == "__main__":
-    from plots import plot_normalized_results
+    from src.plots import plot_normalized_results
 
     # ==== Load sample time series ====
-    sample_data = pd.read_csv("../dev/datasets/AAPL_2009-2010_6m_features_1d.csv")
+    sample_data = pd.read_csv("datasets/AAPL_2009-2010_6m_features_1d.csv")
     sample_data.set_index("Date", inplace=True)
 
     # Auto normalizer selection or defaults Standard Scaler

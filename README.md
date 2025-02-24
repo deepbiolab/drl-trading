@@ -36,7 +36,7 @@
    - **Hold Actions**: $R_{hold} = 0$ (default)
    - **Sell Actions**: $R_{sell} = log(P_{sell} / P_{buy})$
 
-> For detailed implementation guidelines and mathematical formulations, please refer to the [technical documentation](./dev/report.md).
+> For detailed definition guidelines, please refer to the [report](./notebook/report.md).
 
 
 ![](./assets/reply-buffer.png)

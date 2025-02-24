@@ -32,6 +32,9 @@ import numpy as np
 import pandas as pd
 
 
+def sigmoid(x):
+    return 1 / (1 + np.exp(-x))
+
 class Environment:
     """
     Trading environment for reinforcement learning agent.
@@ -64,7 +67,9 @@ class Environment:
         Number of possible actions (3: hold, buy, sell)
     """
 
-    def __init__(self, data: pd.DataFrame, window_size: int = 10, verbose=False) -> None:
+    def __init__(
+        self, data: pd.DataFrame, window_size: int = 10, verbose=False
+    ) -> None:
         """
         Initialize the trading environment.
 
@@ -191,7 +196,6 @@ class Environment:
         # Update state
         self.current_step += 1
         done = 1 if self.current_step >= self.n_samples - 1 else 0
-
 
         # Get next state observation
         next_state = self._get_state(self.current_step)
@@ -326,7 +330,7 @@ class Environment:
             window = np.array([self.features[0]] * n)
 
         # Calculate differences between consecutive time steps
-        differences = window[1:] - window[:-1]
+        differences = sigmoid(window[1:] - window[:-1])
 
         # Flatten and return as 1D array
         return np.array([differences]).flatten()
@@ -338,11 +342,11 @@ class Environment:
 
 if __name__ == "__main__":
     # Test script for the environment
-    from preprocess import load_dataset
+    from src.preprocess import load_dataset
 
     # Load and prepare test data
     train_df, test_df = load_dataset(
-        data_path="AAPL_2009-2010_6m_raw_1d.csv",
+        data_path="datasets/AAPL_2009-2010_6m_raw_1d.csv",
         is_auto=False,
         indicator_params={
             "ma_windows": [5, 20],
