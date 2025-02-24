@@ -44,26 +44,26 @@ This project implements a Deep Reinforcement Learning (DRL) agent for trading fi
 
 The main script (`main.py`) uses command-line arguments to configure the training and testing process. Below is a list of supported arguments:
 
-| Argument            | Default Value                          | Description                                   |
-||-|--|
-| `--data_path`       | `datasets/AAPL_2009-2010_6m_features_1d.csv` | Path to the dataset.                         |
-| `--train_split`     | `0.8`                                  | Train/test split ratio.                      |
-| `--n_episodes`      | `3`                                    | Number of training episodes.                 |
-| `--window`          | `1`                                    | Window size for averaging scores.            |
-| `--window_size`     | `1`                                    | Observation window size.                     |
-| `--epsilon`         | `1.0`                                  | Initial epsilon for exploration.             |
-| `--eps_min`         | `0.01`                                 | Minimum epsilon value.                       |
-| `--eps_decay`       | `0.995`                                | Epsilon decay rate.                          |
-| `--buffer_size`     | `1000`                                 | Replay buffer size.                          |
-| `--batch_size`      | `32`                                   | Training batch size.                         |
-| `--gamma`           | `0.95`                                 | Discount factor.                             |
-| `--alpha`           | `1e-3`                                 | Soft update parameter.                       |
-| `--lr`              | `0.001`                                | Learning rate.                               |
-| `--update_step`     | `4`                                    | Steps between network updates.               |
-| `--seed`            | `42`                                   | Random seed.                                 |
-| `--verbose`         | `False`                                | Enable verbose output.                       |
-| `--model_path`      | `checkpoint.pth`                       | Path to save/load the model.                 |
-| `--mode`            | `both`                                 | Run mode: `train`, `test`, or `both`.        |
+| Argument            | Default Value                          | Description                              |
+| --------            | -------------                          | -----------                              |
+| `--data_path`       | `datasets/AAPL_2009-2010_6m_features_1d.csv` | Path to the dataset.               |
+| `--train_split`     | `0.8`                                  | Train/test split ratio.                  |
+| `--n_episodes`      | `3`                                    | Number of training episodes.             |
+| `--window`          | `1`                                    | Window size for averaging scores.        |
+| `--window_size`     | `1`                                    | Observation window size.                 |
+| `--epsilon`         | `1.0`                                  | Initial epsilon for exploration.         |
+| `--eps_min`         | `0.01`                                 | Minimum epsilon value.                   |
+| `--eps_decay`       | `0.995`                                | Epsilon decay rate.                      |
+| `--buffer_size`     | `1000`                                 | Replay buffer size.                      |
+| `--batch_size`      | `32`                                   | Training batch size.                     |
+| `--gamma`           | `0.95`                                 | Discount factor.                         |
+| `--alpha`           | `1e-3`                                 | Soft update parameter.                   |
+| `--lr`              | `0.001`                                | Learning rate.                           |
+| `--update_step`     | `4`                                    | Steps between network updates.           |
+| `--seed`            | `42`                                   | Random seed.                             |
+| `--verbose`         | `False`                                | Enable verbose output.                   |
+| `--model_path`      | `checkpoint.pth`                       | Path to save/load the model.             |
+| `--mode`            | `both`                                 | Run mode: `train`, `test`, or `both`.    |
 
 ### Example Commands
 
