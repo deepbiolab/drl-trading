@@ -246,15 +246,15 @@ def backtest(args):
         state = next_state
 
         if action == 1:
+            trade_tracker.loc[len(info["states_buy"]), "Buy Timestamp"] = backtest_df['Date'][t]
             trade_tracker.loc[len(info["states_buy"]), "Buy Price"] = info["buy_price"]
-            trade_tracker.loc[len(info["states_buy"]), "Buy Timestamp"] = backtest_df.index[t]
             trade_tracker.loc[len(info["states_buy"]), "Buy Volume"] = backtest_df["Volume"][t]
             trade_tracker.loc[len(info["states_buy"]), "Buy MA20"] = backtest_df["MA20"][t]
             trade_tracker.loc[len(info["states_buy"]), "Buy STD20"] = backtest_df["STD20"][t]
 
         if action == 2 and len(backtest_env.inventory) > 0:
+            trade_tracker.loc[len(info["states_sell"]), "Sell Timestamp"] = backtest_df['Date'][t]
             trade_tracker.loc[len(info["states_sell"]), "Sell Price"] = info["sell_price"]
-            trade_tracker.loc[len(info["states_sell"]), "Sell Timestamp"] = backtest_df.index[t]
 
         if done:
             print("------------------------------------------")
