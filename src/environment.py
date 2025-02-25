@@ -31,6 +31,8 @@ from typing import Dict, List, Tuple, Optional
 import numpy as np
 import pandas as pd
 
+from src.normalize import normalize_dataset
+
 def calculate_log_return(sell_price: float, buy_price: float) -> float:
     """
     Calculate the log return between buy and sell prices.
@@ -48,9 +50,6 @@ def calculate_log_return(sell_price: float, buy_price: float) -> float:
         Log return of the trade
     """
     return np.log(sell_price / buy_price)
-
-def sigmoid(x):
-    return 1 / (1 + np.exp(-x))
 
 class Environment:
     """
@@ -85,7 +84,8 @@ class Environment:
     """
 
     def __init__(
-        self, data: pd.DataFrame, window_size: int = 10, verbose=False
+        self, data: pd.DataFrame, window_size: int = 10, verbose=False,
+        is_auto: bool = False,
     ) -> None:
         """
         Initialize the trading environment.
@@ -96,12 +96,19 @@ class Environment:
             DataFrame containing trading data and indicators
         window_size : int, default=10
             Number of time steps to include in state observation
+        is_auto : bool, default=True
+            Whether to automatically select normalization method
         """
         self.verbose = verbose
 
         # Data initialization
         self.data = data
-        self.features = self.data.values
+        self.normalized_data, self.normalizer = normalize_dataset(
+            data, 
+            rolling=False,  # Use static normalization for now
+            is_auto=is_auto
+        )
+        self.features = self.normalized_data.values
         self.feature_columns = self.data.columns.tolist()
         self.feature_map = self._create_feature_mapping(self.feature_columns)
 
@@ -113,16 +120,15 @@ class Environment:
         self.current_step: Optional[int] = None
         self.inventory: Optional[List[float]] = None
         self.total_profit: Optional[float] = None
+        self.total_winners = 0.0
+        self.total_losers = 0.0
+        self.states_buy = []
+        self.states_sell = []
 
         # Environment configuration
         self.window_size = window_size
         self.state_size = self.window_size * self.n_features
         self.action_size = 3  # hold (0), buy (1), sell (2)
-
-        self.total_winners = 0.0
-        self.total_losers = 0.0
-        self.states_buy = []
-        self.states_sell = []
 
         # Initialize environment state
         self.reset()
@@ -172,6 +178,7 @@ class Environment:
         reward = 0.0
         info = {}
 
+        # Use actual price for trading
         current_price = self._get_current_price()
 
         if action == 1:  # Buy
@@ -184,7 +191,6 @@ class Environment:
 
         elif action == 2 and len(self.inventory) > 0:  # Sell
             bought_price = self.inventory.pop(0)
-            # trade_profit = calculate_log_return(current_price, bought_price)
             trade_profit = current_price - bought_price
             reward = max(trade_profit, 0)  # Only positive rewards
             self.total_profit += trade_profit.item()
@@ -287,12 +293,25 @@ class Environment:
         """
         try:
             close_idx = self.feature_map["Close"]
-            return self.features[self.current_step][close_idx]
+            # Get original (denormalized) price for actual trading
+            return self.data.iloc[self.current_step]["Close"]
+            # return self.features[self.current_step][close_idx]
         except KeyError:
             raise KeyError(
                 "'Close' price column not found in feature map. "
                 f"Available features: {list(self.feature_map.keys())}"
             )
+
+    def get_normalized_price(self) -> float:
+        """Get the normalized current close price."""
+        close_idx = self.feature_map["Close"]
+        return self.features[self.current_step][close_idx]
+
+    def denormalize_price(self, normalized_price: float) -> float:
+        """Convert normalized price back to original scale."""
+        return self.normalizer.inverse_transform_static(
+            pd.DataFrame({'Close': [normalized_price]})
+        )['Close'].iloc[0]
 
     def _create_feature_mapping(self, columns: List[str]) -> Dict[str, int]:
         """
@@ -348,7 +367,8 @@ class Environment:
             window = np.array([self.features[0]] * n)
 
         # Calculate differences between consecutive time steps
-        differences = sigmoid(window[1:] - window[:-1])
+        # differences = sigmoid(window[1:] - window[:-1])
+        differences = window[1:] - window[:-1]
 
         # Flatten and return as 1D array
         return np.array([differences]).flatten()

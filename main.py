@@ -192,7 +192,7 @@ def parse_args():
                       help='Train/test split ratio')
     
     # Training parameters
-    parser.add_argument('--n_episodes', type=int, default=10,
+    parser.add_argument('--n_episodes', type=int, default=5,
                       help='Number of training episodes')
     parser.add_argument('--window', type=int, default=1,
                       help='Window size for averaging scores')
