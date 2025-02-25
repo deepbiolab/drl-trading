@@ -295,7 +295,6 @@ class Environment:
             close_idx = self.feature_map["Close"]
             # Get original (denormalized) price for actual trading
             return self.data.iloc[self.current_step]["Close"]
-            # return self.features[self.current_step][close_idx]
         except KeyError:
             raise KeyError(
                 "'Close' price column not found in feature map. "
@@ -367,7 +366,6 @@ class Environment:
             window = np.array([self.features[0]] * n)
 
         # Calculate differences between consecutive time steps
-        # differences = sigmoid(window[1:] - window[:-1])
         differences = window[1:] - window[:-1]
 
         # Flatten and return as 1D array
