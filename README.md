@@ -73,11 +73,6 @@ The main script (`main.py`) uses command-line arguments to configure the trainin
 python main.py
 ```
 
-#### Train and Test
-```bash
-python main.py --mode train
-```
-
 #### Backtest Only
 ```bash
 python main.py --mode backtest \
