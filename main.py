@@ -298,7 +298,7 @@ def parse_args():
 
     # Training parameters
     parser.add_argument(
-        "--n_episodes", type=int, default=5, help="Number of training episodes"
+        "--n_episodes", type=int, default=100, help="Number of training episodes"
     )
     parser.add_argument(
         "--window", type=int, default=1, help="Window size for averaging scores"
