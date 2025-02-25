@@ -13,6 +13,48 @@ License: MIT License
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
+import numpy as np
+
+
+class AttentionQNetwork(nn.Module):
+    def __init__(self, state_size, action_size, window_size, feature_dim, seed=42):
+        super(AttentionQNetwork, self).__init__()
+        self.seed = torch.manual_seed(seed)
+        self.window_size = window_size
+        self.feature_dim = feature_dim
+        
+        # 特征提取
+        self.feature_extractor = nn.Linear(feature_dim, 32)
+        
+        # 自注意力层
+        self.query = nn.Linear(32, 32)
+        self.key = nn.Linear(32, 32)
+        self.value = nn.Linear(32, 32)
+        
+        # 输出层
+        self.fc = nn.Sequential(
+            nn.Linear(32, 16),
+            nn.ReLU(),
+            nn.Linear(16, action_size)
+        )
+        
+    def forward(self, state):
+        x = state.view(-1, self.window_size, self.feature_dim)
+        
+        x = F.relu(self.feature_extractor(x))
+        
+        q = self.query(x)
+        k = self.key(x)
+        v = self.value(x)
+        
+        scores = torch.matmul(q, k.transpose(-2, -1)) / np.sqrt(32)
+        attention_weights = F.softmax(scores, dim=-1)
+        context = torch.matmul(attention_weights, v)
+        
+        x = torch.mean(context, dim=1)
+        
+        return self.fc(x)
 
 
 class QNetwork(nn.Module):

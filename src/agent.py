@@ -37,7 +37,7 @@ import torch
 import torch.nn.functional as F
 import torch.optim as optim
 
-from src.model import QNetwork
+from src.model import QNetwork, AttentionQNetwork
 from src.replay_buffer import ReplayBuffer
 
 
@@ -92,6 +92,8 @@ class Agent:
         # Q-Network
         self.Q = QNetwork(self.state_size, self.action_size, seed).to(device)
         self.Q_target = QNetwork(self.state_size, self.action_size, seed).to(device)
+        # self.Q = AttentionQNetwork(self.state_size, self.action_size, env.window_size, env.n_features, seed).to(device)
+        # self.Q_target = AttentionQNetwork(self.state_size, self.action_size, env.window_size, env.n_features, seed).to(device)
         self.optimizer = optim.Adam(self.Q.parameters(), lr=self.lr)
 
         # Replay memory
