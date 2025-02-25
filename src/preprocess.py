@@ -181,7 +181,7 @@ def process_stock_data(
     return data
 
 
-def load_dataset(data_path, indicator_params=None, verbose=False, is_auto=False):
+def load_dataset(data_path, indicator_params=None, required_cols=[], verbose=False, is_auto=False, train_ratio=0.8):
     """
     Load and process stock data, then split into training and test sets.
     
@@ -210,29 +210,32 @@ def load_dataset(data_path, indicator_params=None, verbose=False, is_auto=False)
         indicator_params=indicator_params,
         verbose=verbose
     )
-
-    key_features = ['Close', 'Volume']
+    processed_data.reset_index(inplace=True)
+    key_features = ['Date', 'Close', 'Volume']
     additional_features = list(set(processed_data.columns).difference(set(data.columns)))
     feature_columns = key_features + additional_features
-    data = processed_data[feature_columns]
+    selected_data = processed_data[feature_columns]
+
+    if required_cols:
+        selected_data = selected_data[required_cols]
     
     # Calculate split point for 80/20 train/test split
-    split_idx = int(len(data) * 0.8)
+    split_idx = int(len(selected_data) * train_ratio)
     
     # Split the data
-    train_data = data[:split_idx]
-    test_data = data[split_idx:]
+    train_data = selected_data[:split_idx].set_index("Date")
+    test_data = selected_data[split_idx:].set_index("Date")
     
     if verbose:
         print(f"Training set size: {len(train_data)} samples")
         print(f"Test set size: {len(test_data)} samples")
     
-    return train_data, test_data
+    return processed_data, train_data, test_data
 
 
 # Example usage
 if __name__ == "__main__":
-    from plots import plot_technical_indicators
+    from src.plots import plot_technical_indicators
 
     # Configuration
     config = {
@@ -243,7 +246,7 @@ if __name__ == "__main__":
             "bb_std": 2,
             "vol_window": 20,
         },
-        "data_path": "../datasets/AAPL_2009-2010_6m_raw_1d.csv",
+        "data_path": "datasets/AAPL_2009-2010_6m_raw_1d.csv",
         "verbose": False,
     }
 

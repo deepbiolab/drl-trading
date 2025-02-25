@@ -1,3 +1,4 @@
+from .preprocess import load_dataset
 from .agent import Agent
 from .environment import Environment
 from .model import QNetwork
@@ -5,6 +6,7 @@ from .replay_buffer import ReplayBuffer
 from .plots import plot_behavior, plot_losses
 
 __all__ = [
+	'load_dataset',
     'Agent',
     'Environment',
     'QNetwork',

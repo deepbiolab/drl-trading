@@ -33,15 +33,15 @@ import pandas as pd
 
 from src.normalize import normalize_dataset
 
-def calculate_log_return(sell_price: float, buy_price: float) -> float:
+def calculate_log_return(curr_price: float, bought_price: float) -> float:
     """
     Calculate the log return between buy and sell prices.
     
     Parameters:
     -----------
-    sell_price : float
+    curr_price : float
         Price at which asset was sold
-    buy_price : float
+    bought_price : float
         Price at which asset was bought
         
     Returns:
@@ -49,7 +49,7 @@ def calculate_log_return(sell_price: float, buy_price: float) -> float:
     float
         Log return of the trade
     """
-    return np.log(sell_price / buy_price)
+    return np.log(curr_price / bought_price)
 
 class Environment:
     """
@@ -191,7 +191,7 @@ class Environment:
 
         elif action == 2 and len(self.inventory) > 0:  # Sell
             bought_price = self.inventory.pop(0)
-            trade_profit = current_price - bought_price
+            trade_profit = calculate_log_return(current_price, bought_price)
             reward = max(trade_profit, 0)  # Only positive rewards
             self.total_profit += trade_profit.item()
 
@@ -229,10 +229,10 @@ class Environment:
             {
                 "current_step": self.current_step,
                 "current_price": current_price.item(),
-                "total_profit": self.total_profit,
                 "inventory_size": len(self.inventory),
-                "total_winners": self.total_winners,
-                "total_losers": self.total_losers,
+                "total_profit": np.exp(self.total_profit) - 1,
+                "total_winners": np.exp(self.total_winners) - 1,
+                "total_losers": np.exp(self.total_losers) - 1,
                 "states_buy": self.states_buy.copy(),
                 "states_sell": self.states_sell.copy(),
             }
@@ -277,6 +277,12 @@ class Environment:
                 f"Available features: {list(self.feature_map.keys())}"
             )
 
+    def get_denorm_feature_value(self, normalized_value: float, feature_name: str) -> float:
+        """Convert normalized price back to original scale."""
+        return self.normalizer.inverse_transform_static(
+            pd.DataFrame({feature_name: [normalized_value]})
+        )[feature_name].iloc[0]
+
     def _get_current_price(self) -> float:
         """
         Get the current close price using the feature mapping.
@@ -292,25 +298,14 @@ class Environment:
             If 'Close' price column is not found in the data
         """
         try:
-            close_idx = self.feature_map["Close"]
             # Get original (denormalized) price for actual trading
-            return self.data.iloc[self.current_step]["Close"]
+            close_idx = self.feature_map["Close"]
+            return self.data.iloc[self.current_step, close_idx]
         except KeyError:
             raise KeyError(
                 "'Close' price column not found in feature map. "
                 f"Available features: {list(self.feature_map.keys())}"
             )
-
-    def get_normalized_price(self) -> float:
-        """Get the normalized current close price."""
-        close_idx = self.feature_map["Close"]
-        return self.features[self.current_step][close_idx]
-
-    def denormalize_price(self, normalized_price: float) -> float:
-        """Convert normalized price back to original scale."""
-        return self.normalizer.inverse_transform_static(
-            pd.DataFrame({'Close': [normalized_price]})
-        )['Close'].iloc[0]
 
     def _create_feature_mapping(self, columns: List[str]) -> Dict[str, int]:
         """
@@ -381,7 +376,7 @@ if __name__ == "__main__":
     from src.preprocess import load_dataset
 
     # Load and prepare test data
-    train_df, test_df = load_dataset(
+    processed_data, train_df, test_df = load_dataset(
         data_path="datasets/AAPL_2009-2010_6m_raw_1d.csv",
         is_auto=False,
         indicator_params={
