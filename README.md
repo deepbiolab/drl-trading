@@ -46,8 +46,8 @@ The main script (`main.py`) uses command-line arguments to configure the trainin
 
 | Argument            | Default Value                          | Description                              |
 | --------            | -------------                          | -----------                              |
-| `--data_path`       | `datasets/AAPL_2009-2010_6m_features_1d.csv` | Path to the dataset.               |
-| `--backtest_data`   | `datasets/GOOG_2009-2010_6m_raw_1d.csv` | Path to the backtestdataset.            |
+| `--data_path`       | `datasets/AAPL_2009-2010_6m_raw_1d.csv`| Path to the dataset.                     |
+| `--backtest_data`   | `datasets/GOOG_2009-2010_6m_raw_1d.csv`| Path to the backtestdataset.             |
 | `--cv`              | `True`                                 | Whether to use cross validation.         |
 | `--n_folds`         | `5`                                    | Number of folds for cross validation.    |
 | `--train_split`     | `0.8`                                  | Train/test split ratio.                  |
@@ -66,7 +66,7 @@ The main script (`main.py`) uses command-line arguments to configure the trainin
 | `--seed`            | `42`                                   | Random seed.                             |
 | `--verbose`         | `False`                                | Enable verbose output.                   |
 | `--model_path`      | `checkpoint.pth`                       | Path to save/load the model.             |
-| `--mode`            | `both`                                 | Run mode: `train`, `backtest`.    |
+| `--mode`            | `both`                                 | Run mode: `train`, `backtest`.           |
 
 ### Example Commands
 
