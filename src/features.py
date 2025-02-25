@@ -208,6 +208,9 @@ def calculate_technical_indicators(
     pd.DataFrame
         DataFrame with added technical indicators
     """
+    if price_col not in data.columns:
+        raise ValueError(f"Column '{price_col}' not found in the dataset.")
+
     if verbose:
         print("Technical Indicator Calculation")
         mode = "AUTO" if auto_select else "MANUAL"

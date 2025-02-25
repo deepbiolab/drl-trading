@@ -102,6 +102,9 @@ class Environment:
         self.verbose = verbose
 
         # Data initialization
+        if data.empty:
+            raise ValueError("Input data cannot be empty.")
+
         self.data = data
         self.normalized_data, self.normalizer = normalize_dataset(
             data, 
