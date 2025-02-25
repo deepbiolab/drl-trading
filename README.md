@@ -34,7 +34,7 @@ This project implements a Deep Reinforcement Learning (DRL) agent for trading fi
    pip install -r requirements.txt
    ```
 
-3. Ensure you have the dataset in the `datasets/` directory. The default dataset is `datasets/AAPL_2009-2010_6m_features_1d.csv`.
+3. Ensure you have the dataset in the `datasets/` directory. The default dataset is `datasets/AAPL_2009-2010_6m_raw_1d.csv`.
 
 
 
@@ -47,6 +47,7 @@ The main script (`main.py`) uses command-line arguments to configure the trainin
 | Argument            | Default Value                          | Description                              |
 | --------            | -------------                          | -----------                              |
 | `--data_path`       | `datasets/AAPL_2009-2010_6m_features_1d.csv` | Path to the dataset.               |
+| `--backtest_data`   | `datasets/GOOG_2009-2010_6m_raw_1d.csv` | Path to the backtestdataset.               |
 | `--train_split`     | `0.8`                                  | Train/test split ratio.                  |
 | `--n_episodes`      | `3`                                    | Number of training episodes.             |
 | `--window`          | `1`                                    | Window size for averaging scores.        |
@@ -63,7 +64,7 @@ The main script (`main.py`) uses command-line arguments to configure the trainin
 | `--seed`            | `42`                                   | Random seed.                             |
 | `--verbose`         | `False`                                | Enable verbose output.                   |
 | `--model_path`      | `checkpoint.pth`                       | Path to save/load the model.             |
-| `--mode`            | `both`                                 | Run mode: `train`, `test`, or `both`.    |
+| `--mode`            | `both`                                 | Run mode: `train`, `backtest`.    |
 
 ### Example Commands
 
@@ -72,14 +73,16 @@ The main script (`main.py`) uses command-line arguments to configure the trainin
 python main.py
 ```
 
-#### Train Only
+#### Train and Test
 ```bash
 python main.py --mode train
 ```
 
-#### Test Only
+#### Backtest Only
 ```bash
-python main.py --mode test --model_path checkpoints/checkpoint.pth
+python main.py --mode backtest \
+--model_path checkpoints/checkpoint.pth \
+--backtest_data datasets/GOOG_2009-2010_6m_raw_1d.csv
 ```
 
 
@@ -87,18 +90,25 @@ python main.py --mode test --model_path checkpoints/checkpoint.pth
 
 ```
 drl-trading/
-├── datasets/                   # Directory for datasets
-│   └── AAPL_2009-2010_6m_features_1d.csv
-├── src/                        # Source code directory
-│   ├── agent.py                # DQN agent implementation
-│   ├── environment.py          # Trading environment
-│   ├── features.py             # Technical indicators computation
-│   ├── model.py                # Neural network model for DQN
-│   ├── preprocess.py           # Data preprocessing utilities
-│   ├── plots.py                # Plotting utilities
-├── main.py                     # Main script for training and testing
-├── requirements.txt            # Python dependencies
-└── README.md                   # Project documentation
+├── datasets/                   
+│   ├── GOOG_2009-2010_6m_raw_1d.csv      # Directory for backtesting
+│   └── AAPL_2009-2010_6m_raw_1d.csv      # Directory for training and testing datasets
+├── src/                                  # Source code directory
+│   ├── agent.py                          # DQN agent implementation
+│   ├── environment.py                    # Trading environment
+│   ├── features.py                       # Technical indicators computation
+│   ├── model.py                          # Neural network model for DQN
+│   ├── preprocess.py                     # Data preprocessing utilities
+│   ├── normalize.py                      # Data normalization utilities
+│   ├── replay_buffer.py                  # Experience replay buffer
+│   └── plots.py                          # Plotting utilities
+├── checkpoints/                          # Directory for saving model checkpoints
+│   └── checkpoint.pth                    # Checkpoint file
+├── results/                              # Directory for backtesting results
+│   └── results.csv                       # Results file
+├── main.py                               # Main script for training and testing
+├── requirements.txt                      # Python dependencies
+└── README.md                             # Project documentation
 ```
 
 
