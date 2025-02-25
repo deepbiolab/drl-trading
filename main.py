@@ -60,18 +60,11 @@ def dqn(
 
                 print(
                     f"Episode {i_episode} | "
-                    f"Total Profit: {info['total_profit']} | "
-                    f"Total Winners: {info['total_winners']} | "
-                    f"Total Losers: {info['total_losers']} | "
+                    f"Total Return: {np.exp(info['total_profit']) - 1:.4f} | "
+                    f"Total Winners: {np.exp(info['total_winners']) - 1:.4f} | "  # Convert log return
+                    f"Total Losers: {np.exp(info['total_losers']) - 1:.4f} | "   # Convert log return
                     f"Average Loss: {losses[-1] if losses else 0}"
                 )
-                plot_behavior(
-                    env,
-                    info["states_buy"],
-                    info["states_sell"],
-                    info["total_profit"],
-                )
-                plot_losses(losses, f"Episode {i_episode} DQN model loss")
                 break
 
         # Update epsilon
@@ -91,6 +84,13 @@ def dqn(
                 ),
             )
 
+    plot_behavior(
+        env,
+        info["states_buy"],
+        info["states_sell"],
+        info["total_profit"],
+    )
+    plot_losses(losses, f"Episode {i_episode} DQN model loss")
     return scores, losses
 
 
@@ -167,7 +167,7 @@ def test(test_df, args):
 
         if done:
             print("------------------------------------------")
-            print(f"Total Profit: {info['total_profit']}")
+            print(f"Total Return: {np.exp(info['total_profit']) - 1:.4f}")  # Convert log return
             print("------------------------------------------")
 
     # Plot final results
@@ -192,7 +192,7 @@ def parse_args():
                       help='Train/test split ratio')
     
     # Training parameters
-    parser.add_argument('--n_episodes', type=int, default=3,
+    parser.add_argument('--n_episodes', type=int, default=10,
                       help='Number of training episodes')
     parser.add_argument('--window', type=int, default=1,
                       help='Window size for averaging scores')

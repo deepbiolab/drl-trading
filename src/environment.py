@@ -31,6 +31,23 @@ from typing import Dict, List, Tuple, Optional
 import numpy as np
 import pandas as pd
 
+def calculate_log_return(sell_price: float, buy_price: float) -> float:
+    """
+    Calculate the log return between buy and sell prices.
+    
+    Parameters:
+    -----------
+    sell_price : float
+        Price at which asset was sold
+    buy_price : float
+        Price at which asset was bought
+        
+    Returns:
+    --------
+    float
+        Log return of the trade
+    """
+    return np.log(sell_price / buy_price)
 
 def sigmoid(x):
     return 1 / (1 + np.exp(-x))
@@ -167,6 +184,7 @@ class Environment:
 
         elif action == 2 and len(self.inventory) > 0:  # Sell
             bought_price = self.inventory.pop(0)
+            # trade_profit = calculate_log_return(current_price, bought_price)
             trade_profit = current_price - bought_price
             reward = max(trade_profit, 0)  # Only positive rewards
             self.total_profit += trade_profit.item()
