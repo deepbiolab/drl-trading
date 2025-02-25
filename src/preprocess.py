@@ -47,7 +47,7 @@ Author: Tim Lin
 Organization: DeepBioLab
 License: MIT License
 """
-
+from typing import List, Tuple
 import pandas as pd
 from typing import Tuple
 
@@ -231,6 +231,47 @@ def load_dataset(data_path, indicator_params=None, required_cols=[], verbose=Fal
         print(f"Test set size: {len(test_data)} samples")
     
     return processed_data, train_data, test_data
+
+
+def create_cv_folds(processed_data: pd.DataFrame, n_folds: int = 5, required_cols=[]) -> List[Tuple[pd.DataFrame, pd.DataFrame]]:
+    """
+    Create cross validation folds from the data.
+    
+    Parameters:
+    -----------
+    data : pd.DataFrame
+        Input data to split
+    n_folds : int
+        Number of folds for cross validation
+        
+    Returns:
+    --------
+    List[Tuple[pd.DataFrame, pd.DataFrame]]
+        List of (train, val) DataFrame pairs for each fold
+    """
+
+    if required_cols:
+        data = processed_data[required_cols]
+
+    # Calculate fold size
+    fold_size = len(data) // n_folds
+    folds = []
+    
+    for i in range(n_folds):
+        # Calculate validation fold indices
+        val_start = i * fold_size
+        val_end = val_start + fold_size if i < n_folds - 1 else len(data)
+        
+        # Split data into training and validation
+        val_data = data.iloc[val_start:val_end].set_index('Date').copy()
+        train_data = pd.concat([
+            data.iloc[:val_start],
+            data.iloc[val_end:]
+        ]).set_index('Date').copy()
+        
+        folds.append((train_data, val_data))
+    
+    return folds
 
 
 # Example usage

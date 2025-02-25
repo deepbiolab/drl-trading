@@ -4,7 +4,8 @@ import pandas as pd
 import torch
 from pathlib import Path
 
-from src import load_dataset, Agent, Environment
+from src import load_dataset, create_cv_folds
+from src import Agent, Environment
 from src import plot_behavior, plot_losses
 
 
@@ -92,6 +93,88 @@ def dqn(
     )
     plot_losses(losses, f"Episode {i_episode} DQN model loss")
     return scores, losses
+
+
+def cross_validate(args):
+    """Cross validation training function"""
+    print("Starting cross validation...")
+    
+    # Load full dataset
+    processed_data, _, _ = load_dataset(
+        data_path=args.data_path,
+        is_auto=False,
+        indicator_params={
+            "ma_windows": [5, 20],
+            "bb_window": 20,
+            "bb_std": 2,
+            "vol_window": 20,
+        },
+        verbose=args.verbose
+    )
+    
+    # Create CV folds
+    folds = create_cv_folds(processed_data, n_folds=args.n_folds, 
+                            required_cols=["Date", "Close", "BB_upper", "BB_lower"])
+    cv_results = []
+    
+    # Train and evaluate on each fold
+    for fold_idx, (train_df, val_df) in enumerate(folds):
+        print(f"\nTraining Fold {fold_idx + 1}/{args.n_folds}")
+        
+        # Create environments
+        train_env = Environment(train_df, window_size=args.window_size, verbose=False)
+        val_env = Environment(val_df, window_size=args.window_size, verbose=False)
+        
+        # Initialize agent
+        device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
+        agent = Agent(
+            train_env,
+            buffer_size=args.buffer_size,
+            batch_size=args.batch_size,
+            gamma=args.gamma,
+            lr=args.lr,
+            device=device,
+        )
+        
+        # Train on this fold
+        scores, losses = dqn(
+            train_env,
+            agent,
+            n_episodes=args.n_episodes,
+            window=args.window,
+            max_t=len(train_df),
+            epsilon=args.epsilon,
+            eps_min=args.eps_min,
+            eps_decay=args.eps_decay,
+        )
+        
+        # Validate on validation set
+        val_state = val_env.reset()
+        for t in range(len(val_df)):
+            action = agent.select_action(val_state)
+            val_state, _, done, info = val_env.step(action)
+            if done:
+                break
+        
+        # Store results
+        cv_results.append({
+            'fold': fold_idx + 1,
+            'train_profit': np.mean(scores),
+            'val_profit': info['total_profit'],
+            'train_loss': np.mean(losses) if losses else 0
+        })
+        
+        # Save model for this fold
+        agent.save(f"checkpoints/model_fold_{fold_idx + 1}.pth")
+    
+    # Print summary
+    print("\nCross Validation Results:")
+    df_results = pd.DataFrame(cv_results)
+    print(df_results)
+    print("\nMean Results:")
+    print(f"Train Profit: {df_results['train_profit'].mean():.4f} ± {df_results['train_profit'].std():.4f}")
+    print(f"Val Profit: {df_results['val_profit'].mean():.4f} ± {df_results['val_profit'].std():.4f}")
+    print(f"Train Loss: {df_results['train_loss'].mean():.4f} ± {df_results['train_loss'].std():.4f}")
 
 
 def train(args):
@@ -284,6 +367,13 @@ def backtest(args):
 def parse_args():
     """Parse command line arguments"""
     parser = argparse.ArgumentParser(description="DRL Trading Agent")
+    parser.add_argument(
+        "--mode",
+        type=str,
+        choices=["train", "backtest"],
+        default="train",
+        help="Run mode: backtest, or train (train+test)",
+    )
 
     # Data parameters
     parser.add_argument(
@@ -293,8 +383,18 @@ def parse_args():
         help="Path to the dataset",
     )
     parser.add_argument(
+        "--backtest_data",
+        type=str,
+        default="datasets/GOOG_2009-2010_6m_raw_1d.csv",
+        help="Path to backtest data file",
+    )
+    parser.add_argument(
         "--train_split", type=float, default=0.8, help="Train/test split ratio"
     )
+    parser.add_argument("--n_folds", type=int, default=5,
+                      help="Number of folds for cross validation")
+    parser.add_argument("--cv", action="store_true",
+                      help="Whether to use cross validation")
 
     # Training parameters
     parser.add_argument(
@@ -341,19 +441,6 @@ def parse_args():
         default="checkpoint.pth",
         help="Path to save/load model",
     )
-    parser.add_argument(
-        "--mode",
-        type=str,
-        choices=["train", "backtest"],
-        default="train",
-        help="Run mode: backtest, or train (train+test)",
-    )
-    parser.add_argument(
-        "--backtest_data",
-        type=str,
-        default="datasets/GOOG_2009-2010_6m_raw_1d.csv",
-        help="Path to backtest data file",
-    )
 
     return parser.parse_args()
 
@@ -361,10 +448,13 @@ def parse_args():
 if __name__ == "__main__":
     args = parse_args()
 
-    if args.mode == "train":
-        test_df = train(args)
-        test(test_df, args)
+    if args.cv:
+        cross_validate(args)
+    else:
+        if args.mode == "train":
+            test_df = train(args)
+            test(test_df, args)
 
-    if args.mode == "backtest":
-        if args.backtest_data:
-            trade_tracker = backtest(args)
+        if args.mode == "backtest":
+            if args.backtest_data:
+                trade_tracker = backtest(args)
